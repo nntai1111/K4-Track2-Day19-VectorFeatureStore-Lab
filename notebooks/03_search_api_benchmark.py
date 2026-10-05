@@ -36,7 +36,9 @@ proc = subprocess.Popen(
 )
 
 # Đợi server up + warm (Searcher.from_corpus loads embeddings + indexes 1000 docs)
-URL = "http://localhost:8000"
+# 127.0.0.1, not "localhost": on Windows "localhost" tries IPv6 ::1 first and
+# uvicorn only listens on IPv4, so every request pays a ~2 s connect fallback.
+URL = "http://127.0.0.1:8000"
 for _ in range(60):
     try:
         r = httpx.get(f"{URL}/healthz", timeout=2.0)

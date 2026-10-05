@@ -116,6 +116,23 @@ for th in (0.60, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95):
 # > hằng số để copy. Phân bố query của bạn quyết định con số cuối cùng.
 
 # %% [markdown]
+# ### Phân tích của học viên — chọn ngưỡng cho corpus này
+#
+# Số đo trên máy này: 0,75 → tiết kiệm 100% nhưng **36% trả lời sai**; 0,80 → 5%
+# sai; 0,85 → 0% sai, vẫn tiết kiệm 100%; 0,90 → 0% sai, tiết kiệm 96%; 0,95 →
+# chỉ còn 53%.
+#
+# **Chọn 0,85–0,90** (mặc định 0,88): là vùng duy nhất vừa giữ ~toàn bộ phần tiết
+# kiệm vừa có 0% hit sai, và để biên an toàn so với 0,80 nơi lỗi bắt đầu xuất hiện.
+#
+# **Vì sao 0,75 chưa đủ:** corpus gồm 10 topic kỹ thuật viết theo cùng một khuôn
+# câu tiếng Việt ("Khi triển khai ở quy mô lớn…", "Bài viết này giải thích…"),
+# và `bge-small-en` không hiểu sâu tiếng Việt → hai câu hỏi *khác ý* nhưng cùng
+# cấu trúc/từ chung vẫn có cosine ~0,75–0,80. Ở 0,75, hơn một phần ba câu hỏi mới
+# nhận câu trả lời của câu hỏi khác — tiết kiệm 100% chỉ là ảo. Hit sai tệ hơn
+# MISS: MISS chỉ tốn một LLM call, hit sai trả lời sai một cách tự tin.
+
+# %% [markdown]
 # ## 3. TTL: câu trả lời cũ không tự biết mình cũ
 #
 # `SemanticCache` dùng **đồng hồ ảo** (`advance()`) nên ta test được TTL mà không

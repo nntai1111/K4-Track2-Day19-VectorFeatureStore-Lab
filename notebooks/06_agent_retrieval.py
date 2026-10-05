@@ -123,6 +123,27 @@ print(f"\nΔ recall vs single-shot:  tách câu {split - base:+.3f}   tách + fi
 # NB5 lặp lại ở tầng agent: **filter không miễn phí, phải đo chứ đừng đoán.**
 
 # %% [markdown]
+# ### Phân tích của học viên (số đo trên máy này, cùng ngân sách 16 doc)
+#
+# | strategy | recall | balance |
+# |---|---:|---:|
+# | single-shot | 0.526 | 0.08 |
+# | agentic (no filter) | 0.906 | 0.93 |
+# | agentic (+filter) | 0.823 | 0.76 |
+#
+# * **Agentic > single-shot ở cả hai chỉ số** (+0.38 recall, balance 0.08 → 0.93):
+#   một embedding cho câu hỏi ghép bị kéo về vế "mạnh" hơn, nên 16 doc gần như
+#   chỉ phủ một ý. Tách câu → mỗi vế có 8 slot riêng → phủ đều cả hai.
+# * **Vì sao `+filter` thấp hơn `no filter`** (−0.083 recall, −0.17 balance):
+#   topic được *đoán* từ keyword của từng vế. Khi đoán sai (vd. vế "cân bằng tải"
+#   có thể nằm ở `networking` lẫn `cloud`/`devops`), filter là ràng buộc cứng nên
+#   loại bỏ hẳn các doc liên quan ở cụm bên cạnh — retriever không còn cơ hội
+#   xếp chúng lên. Không filter thì vector search vẫn tự tìm được chúng. Đó là
+#   post-filter recall loss của NB5 xuất hiện lại ở tầng planner; filter chỉ nên
+#   bật khi nó đến từ tín hiệu chắc chắn (metadata người dùng chọn, quyền truy cập),
+#   không phải từ suy đoán.
+
+# %% [markdown]
 # ## 4. Reflection: filter tồi còn tệ hơn không filter
 #
 # `Agent` thử lại **một lần** với filter được nới ra khi một call trả về quá ít

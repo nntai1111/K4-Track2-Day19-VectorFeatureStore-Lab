@@ -95,6 +95,17 @@ if res.stderr:
     print(res.stderr)
 assert res.returncode == 0, f"feast apply failed: {res.stderr}"
 
+# %%
+# Verify registration: all 3 feature views must be listed.
+res = subprocess.run(
+    ["feast", "feature-views", "list"],
+    cwd=str(FEAST_DIR),
+    capture_output=True, text=True, check=True,
+)
+print(res.stdout)
+assert all(fv in res.stdout for fv in
+           ("user_profile_features", "item_popularity_features", "query_velocity_features"))
+
 # %% [markdown]
 # ## 3. `feast materialize-incremental` — load offline → online
 #
@@ -196,6 +207,42 @@ historical = fs.get_historical_features(
     ],
 ).to_df()
 print(historical)
+
+# %% [markdown]
+# ### 6b. Vì sao `u_001` biến mất? — PIT join đang chặn leakage
+#
+# Feature row duy nhất của `u_001` có `event_timestamp = NOW - 1h`, nhưng event
+# hỏi tại `NOW - 2h` → tại thời điểm đó feature **chưa tồn tại**. Lấy giá trị
+# đó chính là data leakage, nên PIT join không trả về gì cho `u_001` (file
+# offline store bỏ luôn dòng không có match).
+#
+# Đặt event của `u_001` sau mốc feature của nó → đủ 3 dòng, mỗi dòng lấy đúng
+# giá trị có hiệu lực tại thời điểm event (`feature_ts <= event_ts`).
+
+# %%
+profile = pd.read_parquet(FEAST_DATA / "user_profile.parquet")
+feature_ts = profile.set_index("user_id").loc[["u_001", "u_002", "u_003"], "event_timestamp"]
+print("Feature event_timestamp per user (offline source):")
+for uid, ts in feature_ts.items():
+    print(f"  {uid}: {ts}  (NOW - {NOW - ts.to_pydatetime()})")
+
+entity_df_ok = pd.DataFrame({
+    "user_id": ["u_001", "u_002", "u_003"],
+    "event_timestamp": [NOW - timedelta(minutes=30), NOW - timedelta(hours=1), NOW],
+})
+historical_ok = fs.get_historical_features(
+    entity_df=entity_df_ok,
+    features=[
+        "user_profile_features:reading_speed_wpm",
+        "user_profile_features:topic_affinity",
+    ],
+).to_df().sort_values("user_id").reset_index(drop=True)
+print(f"\nPIT join: {len(historical_ok)} rows x {historical_ok.shape[1] - 2} features")
+print(historical_ok)
+assert len(historical_ok) == 3
+assert (historical_ok["event_timestamp"].values
+        >= feature_ts.loc[historical_ok["user_id"]].values).all(), "leakage!"
+print("OK — every row uses a feature value with feature_ts <= event_ts (no leakage)")
 
 # %% [markdown]
 # ## Deliverable evidence
